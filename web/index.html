@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ScreenGuard Web</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=Nunito:wght@500;600;700&family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="ambient"></div>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">
+            <img class="brand-logo" src="logo.svg" alt="ScreenGuard logo" />
+          </span>
+          <div>
+            <h1>ScreenGuard</h1>
+            <p>Smart screen control</p>
+          </div>
+        </div>
+        <nav class="nav">
+          <button class="nav-btn is-active" data-view="dashboard">Dashboard</button>
+          <button class="nav-btn" data-view="reports">Reports</button>
+          <button class="nav-btn" data-view="health">Health</button>
+          <button class="nav-btn" data-view="achievements">Achievements</button>
+          <button class="nav-btn" data-view="social">Social</button>
+          <button class="nav-btn" data-view="wellbeing">Well-Being</button>
+          <button class="nav-btn" data-view="settings">Settings</button>
+        </nav>
+        <div class="sidebar-footer">
+          <p id="sidebar-status">Status: synced</p>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <h2 id="page-title">Dashboard</h2>
+            <p id="page-subtitle">Your usage overview in one place.</p>
+          </div>
+          <div class="topbar-right">
+            <div class="chip" id="today-chip">--</div>
+            <button class="ghost-btn" id="refresh-all">Refresh</button>
+          </div>
+        </header>
+
+        <section class="view is-visible" id="view-dashboard">
+          <div class="grid two">
+            <article class="card">
+              <h3>Smart Recommendations</h3>
+              <ul class="list" id="recommendations-list"></ul>
+            </article>
+            <article class="card">
+              <h3>Usage Summary</h3>
+              <div class="metric">
+                <span>Today total</span>
+                <strong id="usage-total">--</strong>
+              </div>
+              <div class="metric">
+                <span>Top apps</span>
+                <strong id="usage-top">--</strong>
+              </div>
+              <div class="metric">
+                <span>Trend vs yesterday</span>
+                <strong id="usage-trend">--</strong>
+              </div>
+              <label class="field">
+                <span>Chart style</span>
+                <select id="usage-chart-mode">
+                  <option value="stacked">Stacked bars</option>
+                  <option value="area">Smooth area</option>
+                </select>
+              </label>
+              <canvas id="usage-chart" height="170"></canvas>
+            </article>
+          </div>
+
+          <article class="card">
+            <h3>Automatic Usage Tracking</h3>
+            <div class="inline-form" id="usage-form">
+              <input type="text" id="usage-app" placeholder="Auto-detected app" readonly />
+              <button type="button" class="ghost-btn" id="auto-log-toggle">Pause auto logging</button>
+              <button type="button" class="ghost-btn" id="reset-data">Reset all data</button>
+            </div>
+            <p class="status" id="usage-status"></p>
+            <p class="status" id="auto-log-status">Auto logging: ON</p>
+          </article>
+        </section>
+
+        <section class="view" id="view-reports">
+          <div class="grid two">
+            <article class="card">
+              <h3>Weekly Usage Summary</h3>
+              <ul class="list" id="weekly-usage"></ul>
+            </article>
+            <article class="card">
+              <h3>Weekly Mood Summary</h3>
+              <ul class="list" id="weekly-mood"></ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-settings">
+          <div class="grid two">
+            <article class="card">
+              <h3>Usage Limits</h3>
+              <label class="field">
+                <span>Daily screen time limit (hours)</span>
+                <input type="number" id="daily-limit" min="1" max="24" value="6" />
+              </label>
+              <button class="primary-btn" id="save-limits">Save limits</button>
+            </article>
+            <article class="card">
+              <h3>Appearance</h3>
+              <label class="field">
+                <span>Theme</span>
+                <select id="theme-select">
+                  <option value="night">Night</option>
+                  <option value="day">Day</option>
+                  <option value="aurora">Aurora</option>
+                  <option value="sunset">Sunset</option>
+                  <option value="mono">Mono</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Display name</span>
+                <input type="text" id="settings-username" placeholder="Enter your name" />
+              </label>
+              <button class="primary-btn" id="save-username">Save name</button>
+              <p class="status" id="username-status"></p>
+              <button class="primary-btn" id="save-theme">Apply theme</button>
+            </article>
+          </div>
+
+          <div class="grid two">
+            <article class="card">
+              <h3>Notification Preferences</h3>
+              <label class="checkbox">
+                <input type="checkbox" id="notify-desktop" checked />
+                <span>Desktop notifications</span>
+              </label>
+              <label class="checkbox">
+                <input type="checkbox" id="notify-email" />
+                <span>Email notifications (high urgency)</span>
+              </label>
+              <label class="checkbox">
+                <input type="checkbox" id="notify-sms" />
+                <span>SMS notifications (critical)</span>
+              </label>
+              <label class="checkbox">
+                <input type="checkbox" id="notify-voice" />
+                <span>Voice alerts</span>
+              </label>
+              <label class="checkbox">
+                <input type="checkbox" id="notify-wallpaper" />
+                <span>Change wallpaper on limit exceeded</span>
+              </label>
+
+              <label class="field">
+                <span>Minimum urgency to notify</span>
+                <select id="min-urgency">
+                  <option value="low">low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                  <option value="critical">critical</option>
+                </select>
+              </label>
+
+              <div class="inline-fields">
+                <label class="field">
+                  <span>Quiet hours start</span>
+                  <input type="number" id="quiet-start" min="0" max="23" value="22" />
+                </label>
+                <label class="field">
+                  <span>Quiet hours end</span>
+                  <input type="number" id="quiet-end" min="0" max="23" value="7" />
+                </label>
+              </div>
+
+              <label class="checkbox">
+                <input type="checkbox" id="dnd" />
+                <span>Do not disturb</span>
+              </label>
+              <button class="primary-btn" id="save-notifications">Save preferences</button>
+              <p class="status" id="notifications-status"></p>
+            </article>
+
+            <article class="card">
+              <h3>Calendar Integration (Google)</h3>
+              <label class="checkbox">
+                <input type="checkbox" id="calendar-enabled" />
+                <span>Enable calendar sync</span>
+              </label>
+              <label class="checkbox">
+                <input type="checkbox" id="exam-mode" />
+                <span>Exam mode (stricter limits)</span>
+              </label>
+              <label class="field">
+                <span>Credentials JSON path</span>
+                <input type="text" id="calendar-credentials" placeholder="path/to/credentials.json" />
+              </label>
+              <label class="field">
+                <span>Calendar ID</span>
+                <input type="text" id="calendar-id" placeholder="primary" />
+              </label>
+              <button class="primary-btn" id="sync-calendar">Sync calendar now</button>
+              <p class="status" id="calendar-status">Status: not synced</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-health">
+          <div class="grid two">
+            <article class="card">
+              <h3>Focus Recovery Coach</h3>
+              <div class="progress">
+                <div class="progress-bar" id="strain-progress"></div>
+              </div>
+              <p class="status" id="health-timer">Next recovery in: --</p>
+              <p class="status" id="focus-score">Focus score: --</p>
+              <p class="status" id="blue-light">Blue light exposure: --</p>
+              <p class="status" id="focus-tip">Recovery tip: --</p>
+              <button class="primary-btn" id="start-recovery">Start recovery session</button>
+            </article>
+            <article class="card">
+              <h3>Recovery Guide</h3>
+              <ul class="list">
+                <li>Look away from the screen and relax your eyes.</li>
+                <li>Stretch shoulders, neck, and upper back.</li>
+                <li>Take deep breaths for one minute.</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-achievements">
+          <div class="grid two">
+            <article class="card">
+              <h3>Level Progress</h3>
+              <div class="metric">
+                <span>Current level</span>
+                <strong id="achievement-level">--</strong>
+              </div>
+              <div class="progress">
+                <div class="progress-bar" id="level-progress"></div>
+              </div>
+              <p class="status" id="level-progress-text">--</p>
+            </article>
+            <article class="card">
+              <h3>Unlocked Achievements</h3>
+              <ul class="list" id="achievement-unlocked"></ul>
+            </article>
+          </div>
+          <article class="card">
+            <h3>Pending Achievements</h3>
+            <ul class="list" id="achievement-pending"></ul>
+          </article>
+        </section>
+
+        <section class="view" id="view-social">
+          <div class="grid two">
+            <article class="card">
+              <h3>Friends</h3>
+              <form class="inline-form" id="friend-form">
+                <input type="text" id="friend-username" placeholder="Add friend by username" />
+                <button class="primary-btn" type="submit">Add</button>
+              </form>
+              <form class="inline-form" id="block-form">
+                <input type="text" id="block-username" placeholder="Block or unblock username" />
+                <button class="ghost-btn" type="button" id="block-user">Block</button>
+                <button class="ghost-btn" type="button" id="unblock-user">Unblock</button>
+              </form>
+              <ul class="list" id="friends-list"></ul>
+              <p class="status" id="friends-status"></p>
+            </article>
+
+            <article class="card">
+              <h3>Groups & Messaging</h3>
+              <form class="inline-form" id="group-form">
+                <input type="text" id="group-name" placeholder="Group name" />
+                <label class="checkbox">
+                  <input type="checkbox" id="group-private" checked />
+                  <span>Private</span>
+                </label>
+                <button class="primary-btn" type="submit">Create group</button>
+              </form>
+              <ul class="list" id="groups-list"></ul>
+              <form class="inline-form" id="member-form">
+                <input type="text" id="member-username" placeholder="Add member username" />
+                <button class="ghost-btn" type="submit">Add member</button>
+              </form>
+              <form class="inline-form" id="message-form">
+                <input type="text" id="group-message" placeholder="Send a group message" />
+                <button class="primary-btn" type="submit">Send</button>
+              </form>
+              <ul class="list" id="messages-list"></ul>
+              <p class="status" id="group-status"></p>
+            </article>
+          </div>
+
+          <div class="grid two">
+            <article class="card">
+              <h3>Challenges & Leaderboards</h3>
+              <form class="inline-form" id="challenge-form">
+                <input type="text" id="challenge-title" placeholder="Challenge title" />
+                <select id="challenge-type">
+                  <option>Screen-Free Sunday</option>
+                  <option>Most Focus Sessions</option>
+                  <option>Lowest Social Media Usage</option>
+                  <option>Team Goal</option>
+                </select>
+                <input type="number" id="challenge-days" min="1" max="60" value="7" />
+              </form>
+              <form class="inline-form" id="challenge-form-2">
+                <input type="text" id="challenge-participants" placeholder="Participants (comma-separated)" />
+                <label class="checkbox">
+                  <input type="checkbox" id="challenge-anon" />
+                  <span>Anonymous leaderboard</span>
+                </label>
+                <button class="primary-btn" type="submit">Create challenge</button>
+              </form>
+              <ul class="list" id="challenges-list"></ul>
+              <button class="ghost-btn" id="refresh-leaderboard">Refresh leaderboard</button>
+              <ul class="list" id="leaderboard-list"></ul>
+              <p class="status" id="challenge-status"></p>
+            </article>
+
+            <article class="card">
+              <h3>Share Achievements</h3>
+              <form class="inline-form" id="share-form">
+                <input type="text" id="share-achievement" placeholder="Achievement ID or name" />
+                <input type="text" id="share-message" placeholder="Optional message" />
+              </form>
+              <form class="inline-form" id="share-form-2">
+                <select id="share-audience">
+                  <option value="friends">friends</option>
+                  <option value="group">group</option>
+                  <option value="public">public</option>
+                </select>
+                <input type="text" id="share-targets" placeholder="Targets (usernames or group ID)" />
+                <button class="primary-btn" type="submit">Share</button>
+              </form>
+              <p class="status" id="share-status"></p>
+
+              <h3>Privacy Controls</h3>
+              <label class="checkbox">
+                <input type="checkbox" id="privacy-achievements" />
+                <span>Allow achievement sharing</span>
+              </label>
+              <label class="checkbox">
+                <input type="checkbox" id="privacy-stats" />
+                <span>Allow statistics sharing</span>
+              </label>
+              <label class="checkbox">
+                <input type="checkbox" id="privacy-anon" />
+                <span>Use anonymous leaderboards</span>
+              </label>
+              <label class="field">
+                <span>Local username</span>
+                <input type="text" id="privacy-username" placeholder="you" />
+              </label>
+              <button class="primary-btn" id="save-privacy">Save privacy settings</button>
+              <p class="status" id="privacy-status"></p>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-wellbeing">
+          <div class="grid two">
+            <article class="card">
+              <h3>Automatic Mood Tracking</h3>
+              <p class="status" id="mood-status">Auto mood check-ins run every hour.</p>
+              <ul class="list" id="mood-recent"></ul>
+            </article>
+
+            <article class="card">
+              <h3>Trends & Correlations</h3>
+              <p class="status" id="mood-trend">--</p>
+              <p class="status" id="mood-correlation">--</p>
+              <p class="status" id="mood-patterns">--</p>
+            </article>
+          </div>
+
+          <div class="grid two">
+            <article class="card">
+              <h3>Well-Being Recommendations</h3>
+              <ul class="list" id="mood-recommendations"></ul>
+            </article>
+            <article class="card">
+              <h3>Mental Health App Integrations</h3>
+              <p>Planned: Daylio, Moodpath, Apple Health, Google Fit</p>
+              <p class="status" id="integration-status">Status: not connected</p>
+              <button class="primary-btn" id="generate-summary">Generate summary</button>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="modal-backdrop" id="username-onboarding" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="username-modal-title">
+        <h3 id="username-modal-title">Welcome to ScreenGuard</h3>
+        <p class="status">Before you continue, what name should we use to greet you?</p>
+        <input type="text" id="username-onboarding-input" placeholder="Enter your name" maxlength="24" />
+        <div class="inline-form">
+          <button class="primary-btn" id="username-onboarding-save" type="button" onclick="window.__sgSaveNameFromModal && window.__sgSaveNameFromModal()">Save name</button>
+          <button class="ghost-btn" id="username-onboarding-skip" type="button" onclick="window.__sgSkipNameFromModal && window.__sgSkipNameFromModal()">Skip for now</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+    <script src="app.js?v=20260227b"></script>
+  </body>
+</html>

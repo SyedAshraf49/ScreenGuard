@@ -1,0 +1,9 @@
+PyQt6
+psutil
+matplotlib
+plyer
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+fastapi
+uvicorn

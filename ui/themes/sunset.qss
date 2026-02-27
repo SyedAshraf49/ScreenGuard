@@ -1,0 +1,133 @@
+QWidget{
+  background-color:#201022;
+  color:#ffe8f0;
+  font-family:"Merriweather","Georgia","Times New Roman";
+  font-size:11pt;
+}
+
+#title{
+  font-size:19pt;
+  font-weight:700;
+  color:#fff1f2;
+}
+
+QLabel#cardTitle{
+  font-size:12pt;
+  font-weight:700;
+  color:#ffe4e6;
+}
+
+QScrollArea,
+QScrollArea QWidget{
+  background:transparent;
+}
+
+QWidget#sidebar{
+  background:rgba(36, 12, 35, 0.9);
+  border-radius:14px;
+}
+
+QPushButton#sidebarButton{
+  background:rgba(255, 255, 255, 0.08);
+  border:none;
+  border-radius:10px;
+  padding:8px 12px;
+  color:#ffe8f0;
+  text-align:left;
+  min-height:32px;
+}
+QPushButton#sidebarButton:hover{
+  background:rgba(251, 113, 133, 0.28);
+}
+QPushButton#sidebarButton:pressed{
+  background:rgba(249, 115, 22, 0.3);
+}
+QPushButton#sidebarButton:checked{
+  background:rgba(244, 63, 94, 0.35);
+  color:#fff1f2;
+}
+
+QFrame#card{
+  background:rgba(255, 255, 255, 0.07);
+  border:none;
+  border-radius:14px;
+  padding:16px;
+}
+
+QLabel{
+  color:#ffe4e6;
+}
+
+QPushButton{
+  background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #fb7185,stop:1 #f97316);
+  border:none;
+  border-radius:10px;
+  padding:8px 14px;
+  color:#2b0d16;
+  font-weight:700;
+  min-height:30px;
+}
+QPushButton:hover{
+  background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #fda4af,stop:1 #fb923c);
+}
+QPushButton:pressed{
+  background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #e11d48,stop:1 #ea580c);
+}
+
+QLineEdit,
+QSpinBox,
+QComboBox{
+  background:rgba(255, 255, 255, 0.12);
+  border:none;
+  border-radius:10px;
+  padding:6px 10px;
+  min-height:30px;
+  color:#fff1f2;
+}
+
+QComboBox::drop-down{
+  border:none;
+  width:22px;
+}
+
+QCheckBox{
+  spacing:8px;
+}
+
+QCheckBox::indicator{
+  width:16px;
+  height:16px;
+  border-radius:4px;
+  border:none;
+  background:rgba(15, 23, 42, 0.55);
+}
+QCheckBox::indicator:checked{
+  background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #fb7185,stop:1 #f97316);
+  border:none;
+}
+
+QListWidget{
+  background:rgba(255, 255, 255, 0.08);
+  border:none;
+  border-radius:10px;
+  padding:6px;
+}
+QListWidget::item{
+  padding:6px 8px;
+  border-radius:8px;
+}
+QListWidget::item:selected{
+  background:rgba(251, 113, 133, 0.28);
+}
+
+QProgressBar{
+  border:none;
+  border-radius:10px;
+  background:rgba(255, 255, 255, 0.09);
+  text-align:center;
+  padding:2px;
+}
+QProgressBar::chunk{
+  border-radius:8px;
+  background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #fb7185,stop:1 #f97316);
+}
