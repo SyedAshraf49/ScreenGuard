@@ -1,19 +1,66 @@
 # ScreenGuard – Smart Screen Time Controller
 
-## How to Run
-1. Install Python 3.10+
-2. pip install -r requirements.txt
-3. python main.py
+## Requirements
+- Python 3.10 or higher — download from https://python.org
+- Windows, macOS, or Linux
 
-## Web Version
-1. Install Python 3.10+
-2. pip install -r requirements.txt
-3. python -m uvicorn backend.app:app --reload
-4. Open http://127.0.0.1:8000
+> **Note:** Active window tracking (auto-detecting which app you're using) only works on **Windows**. On macOS/Linux the web dashboard and all other features still work fully.
 
-Notes:
-- The web UI is served from the backend and uses the FastAPI JSON API.
-- Google Calendar sync requires the Google API packages already listed in requirements.txt.
+---
+
+## Quick Setup (Recommended)
+
+**Windows:**
+```bat
+setup.bat
+```
+
+**macOS / Linux:**
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+These scripts automatically create a virtual environment and install all dependencies.
+
+---
+
+## Manual Setup
+
+```bash
+python -m venv .venv
+
+# Windows
+.venv\Scripts\pip install -r requirements.txt
+
+# macOS / Linux
+.venv/bin/pip install -r requirements.txt
+```
+
+---
+
+## Running the App
+
+### Desktop App (PyQt6 GUI)
+```bash
+# Windows
+.venv\Scripts\python main.py
+
+# macOS / Linux
+.venv/bin/python main.py
+```
+
+### Web App (Browser UI)
+```bash
+# Windows
+.venv\Scripts\python -m uvicorn backend.app:app --reload
+
+# macOS / Linux
+.venv/bin/python -m uvicorn backend.app:app --reload
+```
+Then open **http://127.0.0.1:8000** in your browser.
+
+---
 
 ## Features
 - App-wise usage tracking
