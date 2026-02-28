@@ -26,7 +26,8 @@ class Sidebar(QWidget):
             "health": QStyle.StandardPixmap.SP_MediaPlay,
             "achievements": QStyle.StandardPixmap.SP_DialogApplyButton,
             "social": QStyle.StandardPixmap.SP_DirIcon,
-            "well-being": QStyle.StandardPixmap.SP_MessageBoxInformation
+            "well-being": QStyle.StandardPixmap.SP_MessageBoxInformation,
+            "locker": QStyle.StandardPixmap.SP_MessageBoxWarning,
         }
 
         for name in page_names:

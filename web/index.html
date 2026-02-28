@@ -32,6 +32,7 @@
           <button class="nav-btn" data-view="achievements">Achievements</button>
           <button class="nav-btn" data-view="social">Social</button>
           <button class="nav-btn" data-view="wellbeing">Well-Being</button>
+          <button class="nav-btn" data-view="locker">Locker</button>
           <button class="nav-btn" data-view="settings">Settings</button>
         </nav>
         <div class="sidebar-footer">
@@ -400,6 +401,35 @@
               <button class="primary-btn" id="generate-summary">Generate summary</button>
             </article>
           </div>
+        </section>
+
+        <!-- ─── App Locker ──────────────────────────────────────────── -->
+        <section class="view" id="view-locker">
+          <div class="grid two">
+            <article class="card">
+              <h3>Set App Limit</h3>
+              <p class="status">Define a daily time limit for any app. The app will be locked automatically once the limit is reached.</p>
+              <div class="inline-form" id="locker-add-form">
+                <input type="text" id="locker-app-name" placeholder="App name (e.g. chrome)" />
+                <input type="number" id="locker-daily-minutes" min="1" max="1440" value="60" />
+                <span class="field-suffix">min / day</span>
+                <button class="primary-btn" id="locker-save-btn">Set Limit</button>
+              </div>
+              <p class="status" id="locker-add-status"></p>
+            </article>
+
+            <article class="card">
+              <h3>🔒 Locked Apps</h3>
+              <p class="status">These apps are currently locked. Click Unlock to allow access again.</p>
+              <ul class="list" id="locker-locked-list"></ul>
+              <p class="status" id="locker-unlock-status"></p>
+            </article>
+          </div>
+
+          <article class="card">
+            <h3>App Limits — Today's Usage</h3>
+            <ul class="list" id="locker-limits-list"></ul>
+          </article>
         </section>
       </main>
     </div>

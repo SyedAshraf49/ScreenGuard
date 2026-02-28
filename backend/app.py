@@ -44,6 +44,15 @@ from backend.db import (
     close_challenge,
     get_leaderboard,
     upsert_friend,
+    # Locker
+    set_app_limit,
+    get_app_limit,
+    list_app_limits,
+    remove_app_limit,
+    lock_app,
+    unlock_app,
+    list_locked_apps,
+    is_app_locked,
 )
 
 APP_DIR = Path(__file__).resolve().parent
@@ -179,6 +188,15 @@ class PrivacyIn(BaseModel):
 
 class SummaryIn(BaseModel):
     limit: int
+
+
+class AppLimitIn(BaseModel):
+    app: str
+    daily_minutes: int = Field(ge=1, le=1440)
+
+
+class AppUnlockIn(BaseModel):
+    app: str
 
 
 @app.on_event("startup")
@@ -509,6 +527,19 @@ def api_add_usage(entry: UsageEntryIn) -> Dict[str, object]:
     total_minutes = sum(e["duration"] for e in get_usage_for_date(entry_date))
     if total_minutes > _get_daily_limit_minutes():
         _send_notification("Daily limit exceeded.", "high")
+
+    # Auto-lock check: if the app has an individual limit, enforce it
+    app_limit = get_app_limit(app_name)
+    if app_limit is not None:
+        app_total = sum(
+            e["duration"] for e in get_usage_for_date(entry_date) if e["app"] == app_name
+        )
+        if app_total >= app_limit and not is_app_locked(app_name):
+            lock_app(app_name, "limit_exceeded")
+            _send_notification(
+                f"{app_name} locked: daily limit of {app_limit} min reached.",
+                "high",
+            )
 
     return {"ok": True}
 
@@ -849,6 +880,84 @@ def api_list_notifications(limit: int = 50) -> Dict[str, List[Dict[str, object]]
 @app.post("/api/admin/reset")
 def api_reset() -> Dict[str, object]:
     reset_all()
+    return {"ok": True}
+
+
+# ── App Locker ────────────────────────────────────────────────────────────────
+
+@app.get("/api/locker/limits")
+def api_list_locker_limits() -> Dict[str, List[Dict[str, object]]]:
+    return {"items": list_app_limits()}
+
+
+@app.post("/api/locker/limits")
+def api_set_locker_limit(payload: AppLimitIn) -> Dict[str, object]:
+    app_name = payload.app.strip()
+    if not app_name:
+        raise HTTPException(status_code=400, detail="App name required.")
+    set_app_limit(app_name, payload.daily_minutes)
+    return {"ok": True}
+
+
+@app.delete("/api/locker/limits/{app_name}")
+def api_remove_locker_limit(app_name: str) -> Dict[str, object]:
+    removed = remove_app_limit(app_name)
+    if not removed:
+        raise HTTPException(status_code=404, detail="Limit not found.")
+    return {"ok": True}
+
+
+@app.get("/api/locker/status")
+def api_locker_status() -> Dict[str, object]:
+    today = str(datetime.now().date())
+    usage_entries = get_usage_for_date(today)
+    usage_by_app: Dict[str, int] = {}
+    for e in usage_entries:
+        usage_by_app[e["app"]] = usage_by_app.get(e["app"], 0) + int(e["duration"])
+
+    locked = {row["app"]: row for row in list_locked_apps()}
+    limits = list_app_limits()
+
+    items = []
+    for lim in limits:
+        app_name = lim["app"]
+        used = usage_by_app.get(app_name, 0)
+        items.append(
+            {
+                "app": app_name,
+                "daily_minutes": lim["daily_minutes"],
+                "used_minutes": used,
+                "locked": app_name in locked,
+                "locked_at": locked[app_name]["locked_at"] if app_name in locked else None,
+                "locked_reason": locked[app_name]["locked_reason"] if app_name in locked else None,
+            }
+        )
+
+    # Also include apps that are locked but no longer have a limit configured
+    for app_name, info in locked.items():
+        if not any(i["app"] == app_name for i in items):
+            items.append(
+                {
+                    "app": app_name,
+                    "daily_minutes": None,
+                    "used_minutes": usage_by_app.get(app_name, 0),
+                    "locked": True,
+                    "locked_at": info["locked_at"],
+                    "locked_reason": info["locked_reason"],
+                }
+            )
+
+    return {"items": items}
+
+
+@app.post("/api/locker/unlock")
+def api_unlock_app(payload: AppUnlockIn) -> Dict[str, object]:
+    app_name = payload.app.strip()
+    if not app_name:
+        raise HTTPException(status_code=400, detail="App name required.")
+    ok = unlock_app(app_name)
+    if not ok:
+        raise HTTPException(status_code=404, detail="App is not locked.")
     return {"ok": True}
 
 

@@ -8,7 +8,9 @@ from ui.health import HealthPage
 from ui.achievements import AchievementsPage
 from ui.social import SocialPage
 from ui.well_being import WellBeingPage
+from ui.locker import LockerPage
 from core.smart_notifier import SmartNotifier
+from core.app_locker import make_locker
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -28,7 +30,8 @@ class MainWindow(QWidget):
             "health": HealthPage(),
             "achievements": AchievementsPage(),
             "social": SocialPage(),
-            "well-being": WellBeingPage()
+            "well-being": WellBeingPage(),
+            "locker": LockerPage(),
         }
 
         for p in self.pages.values():
@@ -36,10 +39,20 @@ class MainWindow(QWidget):
 
         self.sidebar = Sidebar(
             self.switch_page,
-            extra_pages=["Health", "Achievements", "Social", "Well-Being"]
+            extra_pages=["Health", "Achievements", "Social", "Well-Being", "Locker"]
         )
         layout.addWidget(self.sidebar)
         layout.addWidget(self.stack)
+
+        # Start background app-locker enforcement
+        self._app_locker = make_locker(
+            on_locked_fn=lambda app: self.notifier.notify(
+                f"{app} is locked — time limit reached.", urgency="high"
+            )
+            if hasattr(self.notifier, "notify")
+            else None
+        )
+        self._app_locker.start()
 
         self.apply_theme("night")
         self.sidebar.set_active("dashboard")
@@ -50,6 +63,10 @@ class MainWindow(QWidget):
         page = self.pages.get(name)
         if page and hasattr(page, "refresh"):
             page.refresh()
+
+    def closeEvent(self, event):  # noqa: N802
+        self._app_locker.stop()
+        super().closeEvent(event)
 
     def apply_theme(self, theme_name):
         theme = (theme_name or "night").strip().lower()

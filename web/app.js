@@ -29,6 +29,10 @@ const titles = {
     title: "Well-Being",
     subtitle: "Mood trends and recommendations.",
   },
+  locker: {
+    title: "App Locker",
+    subtitle: "Set per-app time limits and manage locked apps.",
+  },
 };
 
 const state = {
@@ -40,6 +44,7 @@ const state = {
   usageAutoLogTimer: null,
   autoLoggingEnabled: true,
   moodAutoLogTimer: null,
+  lockerRefreshTimer: null,
   usageChartMode: "stacked",
   weeklyUsageRows: [],
   localUsername: "",
@@ -166,6 +171,109 @@ async function apiPost(path, payload) {
   }
   return response.json();
 }
+
+async function apiDelete(path) {
+  const response = await fetch(`${API_BASE}${path}`, { method: "DELETE" });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || "Request failed");
+  }
+  return response.json();
+}
+
+// ── App Locker ───────────────────────────────────────────────────────────────
+
+async function refreshLocker() {
+  const [statusData, limitsData] = await Promise.all([
+    apiGet("/api/locker/status"),
+    apiGet("/api/locker/limits"),
+  ]);
+
+  // ── Locked apps ──────────────────────────────────────────────────────────
+  const lockedList = document.getElementById("locker-locked-list");
+  lockedList.innerHTML = "";
+  const locked = statusData.items.filter((item) => item.locked);
+  if (!locked.length) {
+    lockedList.innerHTML = "<li>No apps are locked right now.</li>";
+  } else {
+    locked.forEach((item) => {
+      const li = document.createElement("li");
+      const since = item.locked_at ? item.locked_at.slice(0, 16) : "";
+      li.innerHTML = `
+        <span>🔒 <strong>${item.app}</strong> — locked since ${since} (${item.locked_reason || ""})</span>
+        <button class="ghost-btn locker-unlock-btn" data-app="${item.app}">Unlock</button>
+      `;
+      lockedList.appendChild(li);
+    });
+  }
+
+  // ── Limits + usage ────────────────────────────────────────────────────────
+  const limitsList = document.getElementById("locker-limits-list");
+  limitsList.innerHTML = "";
+  if (!limitsData.items.length) {
+    limitsList.innerHTML = "<li>No app limits configured yet.</li>";
+  } else {
+    limitsData.items.forEach((lim) => {
+      const statusItem = statusData.items.find((s) => s.app === lim.app);
+      const used = statusItem ? statusItem.used_minutes : 0;
+      const isLocked = statusItem ? statusItem.locked : false;
+      const pct = Math.min(100, Math.round((used / lim.daily_minutes) * 100));
+      const li = document.createElement("li");
+      li.innerHTML = `
+        <span>${isLocked ? "🔒 " : ""}<strong>${lim.app}</strong> — ${used}/${lim.daily_minutes} min (${pct}%)</span>
+        <button class="ghost-btn locker-remove-btn" data-app="${lim.app}">Remove</button>
+      `;
+      limitsList.appendChild(li);
+    });
+  }
+}
+
+document.getElementById("locker-locked-list").addEventListener("click", async (event) => {
+  const btn = event.target.closest(".locker-unlock-btn");
+  if (!btn) return;
+  const app = btn.dataset.app;
+  try {
+    await apiPost("/api/locker/unlock", { app });
+    document.getElementById("locker-unlock-status").textContent = `${app} unlocked.`;
+    await refreshLocker();
+  } catch (err) {
+    document.getElementById("locker-unlock-status").textContent = `Error: ${err.message}`;
+  }
+});
+
+document.getElementById("locker-limits-list").addEventListener("click", async (event) => {
+  const btn = event.target.closest(".locker-remove-btn");
+  if (!btn) return;
+  const app = btn.dataset.app;
+  try {
+    await apiDelete(`/api/locker/limits/${encodeURIComponent(app)}`);
+    await refreshLocker();
+  } catch (err) {
+    showToast(`Error removing limit: ${err.message}`);
+  }
+});
+
+document.getElementById("locker-save-btn").addEventListener("click", async () => {
+  const appName = document.getElementById("locker-app-name").value.trim();
+  const dailyMinutes = Number(document.getElementById("locker-daily-minutes").value);
+  const statusEl = document.getElementById("locker-add-status");
+  if (!appName) {
+    statusEl.textContent = "Please enter an app name.";
+    return;
+  }
+  if (!dailyMinutes || dailyMinutes < 1) {
+    statusEl.textContent = "Please enter a valid number of minutes.";
+    return;
+  }
+  try {
+    await apiPost("/api/locker/limits", { app: appName, daily_minutes: dailyMinutes });
+    statusEl.textContent = `Limit set: ${appName} → ${dailyMinutes} min / day`;
+    document.getElementById("locker-app-name").value = "";
+    await refreshLocker();
+  } catch (err) {
+    statusEl.textContent = `Error: ${err.message}`;
+  }
+});
 
 function resolveNameModal(value) {
   const backdrop = document.getElementById("username-onboarding");
@@ -1039,6 +1147,15 @@ async function init() {
   await refreshAchievements();
   await refreshSocial();
   await refreshWellbeing();
+  await refreshLocker();
+
+  // Auto-refresh locker status every 15 seconds (apps can be auto-locked by usage)
+  if (state.lockerRefreshTimer) {
+    clearInterval(state.lockerRefreshTimer);
+  }
+  state.lockerRefreshTimer = setInterval(() => {
+    refreshLocker().catch(() => {});
+  }, 15000);
 }
 
 navButtons.forEach((btn) => {
@@ -1054,6 +1171,7 @@ document.getElementById("refresh-all").addEventListener("click", async () => {
   await refreshAchievements();
   await refreshSocial();
   await refreshWellbeing();
+  await refreshLocker();
   showToast("Data refreshed");
 });
 

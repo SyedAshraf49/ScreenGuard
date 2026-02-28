@@ -128,6 +128,16 @@ def init_db() -> None:
                 targets TEXT NOT NULL,
                 created_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS app_limits (
+                app TEXT PRIMARY KEY,
+                daily_minutes INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS locked_apps (
+                app TEXT PRIMARY KEY,
+                locked_at TEXT NOT NULL,
+                locked_reason TEXT NOT NULL
+            );
             """
         )
 
@@ -482,6 +492,75 @@ def create_share(achievement_id: str, message: str, audience: str, targets: List
     return int(cur.lastrowid)
 
 
+# App Locker – limits
+
+def set_app_limit(app: str, daily_minutes: int) -> None:
+    now = datetime.now().isoformat(timespec="seconds")
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO app_limits (app, daily_minutes, created_at) VALUES (?, ?, ?) "
+            "ON CONFLICT(app) DO UPDATE SET daily_minutes = excluded.daily_minutes",
+            (app, int(daily_minutes), now),
+        )
+
+
+def get_app_limit(app: str) -> Optional[int]:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT daily_minutes FROM app_limits WHERE app = ?", (app,)
+        ).fetchone()
+    return int(row["daily_minutes"]) if row else None
+
+
+def list_app_limits() -> List[Dict[str, Any]]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT app, daily_minutes, created_at FROM app_limits ORDER BY app"
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def remove_app_limit(app: str) -> bool:
+    with get_conn() as conn:
+        cur = conn.execute("DELETE FROM app_limits WHERE app = ?", (app,))
+    return cur.rowcount > 0
+
+
+# App Locker – locked apps
+
+def lock_app(app: str, reason: str = "limit_exceeded") -> None:
+    now = datetime.now().isoformat(timespec="seconds")
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO locked_apps (app, locked_at, locked_reason) VALUES (?, ?, ?) "
+            "ON CONFLICT(app) DO UPDATE SET locked_at = excluded.locked_at, "
+            "locked_reason = excluded.locked_reason",
+            (app, now, reason),
+        )
+
+
+def unlock_app(app: str) -> bool:
+    with get_conn() as conn:
+        cur = conn.execute("DELETE FROM locked_apps WHERE app = ?", (app,))
+    return cur.rowcount > 0
+
+
+def list_locked_apps() -> List[Dict[str, Any]]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT app, locked_at, locked_reason FROM locked_apps ORDER BY locked_at DESC"
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def is_app_locked(app: str) -> bool:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT app FROM locked_apps WHERE app = ?", (app,)
+        ).fetchone()
+    return row is not None
+
+
 # Admin
 
 def reset_all() -> None:
@@ -499,6 +578,8 @@ def reset_all() -> None:
             DELETE FROM social_challenges;
             DELETE FROM social_challenge_participants;
             DELETE FROM social_shares;
+            DELETE FROM app_limits;
+            DELETE FROM locked_apps;
             """
         )
     ensure_default_settings()
