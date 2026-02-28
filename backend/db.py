@@ -7,9 +7,52 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+import psutil
+
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "screenguard.db"
+
+MAJOR_APP_NAMES = {
+    "chrome",
+    "msedge",
+    "firefox",
+    "brave",
+    "opera",
+    "code",
+    "pycharm64",
+    "idea64",
+    "devenv",
+    "notion",
+    "teams",
+    "slack",
+    "discord",
+    "zoom",
+    "telegram",
+    "whatsapp",
+    "spotify",
+    "steam",
+    "vlc",
+    "obs64",
+    "winword",
+    "excel",
+    "powerpnt",
+    "outlook",
+    "onenote",
+    "notepad",
+    "notepad++",
+}
+
+
+def _normalize_app_name(app: str) -> str:
+    normalized = Path((app or "").strip()).stem.lower()
+    aliases = {
+        "edge": "msedge",
+        "microsoftedge": "msedge",
+        "googlechrome": "chrome",
+        "visualstudiocode": "code",
+    }
+    return aliases.get(normalized, normalized)
 
 DEFAULT_SETTINGS = {
     "notifications.channels": json.dumps(["desktop"]),
@@ -173,12 +216,32 @@ def set_setting(key: str, value: str) -> None:
 # Usage
 
 def add_usage(app: str, duration: int, date_str: str) -> None:
+    app_name = _normalize_app_name(app)
+    if not app_name:
+        return
+
     now = datetime.now().isoformat(timespec="seconds")
+    should_lock = False
     with get_conn() as conn:
         conn.execute(
             "INSERT INTO usage_entries (app, duration, date, created_at) VALUES (?, ?, ?, ?)",
-            (app, int(duration), date_str, now),
+            (app_name, int(duration), date_str, now),
         )
+
+        limit_row = conn.execute(
+            "SELECT daily_minutes FROM app_limits WHERE app = ?",
+            (app_name,),
+        ).fetchone()
+        if limit_row is not None:
+            total_row = conn.execute(
+                "SELECT COALESCE(SUM(duration), 0) AS total FROM usage_entries WHERE date = ? AND app = ?",
+                (date_str, app_name),
+            ).fetchone()
+            used_minutes = int(total_row["total"]) if total_row else 0
+            should_lock = used_minutes >= int(limit_row["daily_minutes"])
+
+    if should_lock:
+        lock_app(app_name, "limit_exceeded")
 
 
 def get_usage_for_date(date_str: str) -> List[Dict[str, Any]]:
@@ -495,19 +558,27 @@ def create_share(achievement_id: str, message: str, audience: str, targets: List
 # App Locker – limits
 
 def set_app_limit(app: str, daily_minutes: int) -> None:
+    app_name = _normalize_app_name(app)
+    if not app_name:
+        return
+
     now = datetime.now().isoformat(timespec="seconds")
     with get_conn() as conn:
         conn.execute(
             "INSERT INTO app_limits (app, daily_minutes, created_at) VALUES (?, ?, ?) "
             "ON CONFLICT(app) DO UPDATE SET daily_minutes = excluded.daily_minutes",
-            (app, int(daily_minutes), now),
+            (app_name, int(daily_minutes), now),
         )
 
 
 def get_app_limit(app: str) -> Optional[int]:
+    app_name = _normalize_app_name(app)
+    if not app_name:
+        return None
+
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT daily_minutes FROM app_limits WHERE app = ?", (app,)
+            "SELECT daily_minutes FROM app_limits WHERE app = ?", (app_name,)
         ).fetchone()
     return int(row["daily_minutes"]) if row else None
 
@@ -521,27 +592,39 @@ def list_app_limits() -> List[Dict[str, Any]]:
 
 
 def remove_app_limit(app: str) -> bool:
+    app_name = _normalize_app_name(app)
+    if not app_name:
+        return False
+
     with get_conn() as conn:
-        cur = conn.execute("DELETE FROM app_limits WHERE app = ?", (app,))
+        cur = conn.execute("DELETE FROM app_limits WHERE app = ?", (app_name,))
     return cur.rowcount > 0
 
 
 # App Locker – locked apps
 
 def lock_app(app: str, reason: str = "limit_exceeded") -> None:
+    app_name = _normalize_app_name(app)
+    if not app_name:
+        return
+
     now = datetime.now().isoformat(timespec="seconds")
     with get_conn() as conn:
         conn.execute(
             "INSERT INTO locked_apps (app, locked_at, locked_reason) VALUES (?, ?, ?) "
             "ON CONFLICT(app) DO UPDATE SET locked_at = excluded.locked_at, "
             "locked_reason = excluded.locked_reason",
-            (app, now, reason),
+            (app_name, now, reason),
         )
 
 
 def unlock_app(app: str) -> bool:
+    app_name = _normalize_app_name(app)
+    if not app_name:
+        return False
+
     with get_conn() as conn:
-        cur = conn.execute("DELETE FROM locked_apps WHERE app = ?", (app,))
+        cur = conn.execute("DELETE FROM locked_apps WHERE app = ?", (app_name,))
     return cur.rowcount > 0
 
 
@@ -554,11 +637,54 @@ def list_locked_apps() -> List[Dict[str, Any]]:
 
 
 def is_app_locked(app: str) -> bool:
+    app_name = _normalize_app_name(app)
+    if not app_name:
+        return False
+
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT app FROM locked_apps WHERE app = ?", (app,)
+            "SELECT app FROM locked_apps WHERE app = ?", (app_name,)
         ).fetchone()
     return row is not None
+
+
+def list_available_apps(limit: int = 400) -> List[str]:
+    apps: set[str] = set()
+
+    with get_conn() as conn:
+        usage_rows = conn.execute(
+            "SELECT DISTINCT app FROM usage_entries ORDER BY created_at DESC LIMIT ?",
+            (int(limit),),
+        ).fetchall()
+        limit_rows = conn.execute("SELECT app FROM app_limits ORDER BY app ASC").fetchall()
+        locked_rows = conn.execute("SELECT app FROM locked_apps ORDER BY app ASC").fetchall()
+
+    for row in usage_rows:
+        app_name = _normalize_app_name(row["app"])
+        if app_name and app_name in MAJOR_APP_NAMES:
+            apps.add(app_name)
+    for row in limit_rows:
+        app_name = _normalize_app_name(row["app"])
+        if app_name and app_name in MAJOR_APP_NAMES:
+            apps.add(app_name)
+    for row in locked_rows:
+        app_name = _normalize_app_name(row["app"])
+        if app_name and app_name in MAJOR_APP_NAMES:
+            apps.add(app_name)
+
+    try:
+        for process in psutil.process_iter(["name"]):
+            app_name = _normalize_app_name(process.info.get("name") or "")
+            if app_name and app_name in MAJOR_APP_NAMES:
+                apps.add(app_name)
+            if len(apps) >= limit:
+                break
+    except (psutil.Error, OSError):
+        pass
+
+    apps.update(MAJOR_APP_NAMES)
+
+    return sorted(list(apps))[: int(limit)]
 
 
 # Admin

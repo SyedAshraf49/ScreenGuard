@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
-from core.memory_store import (
+from backend.db import (
     add_mood_entry,
-    get_mood_entries,
+    get_all_mood_entries,
     get_mood_entries_for_date,
     get_recent_mood_entries,
     get_usage_for_date
@@ -10,15 +10,17 @@ from core.memory_store import (
 
 class WellBeingTracker:
     def __init__(self):
-        self.mood_data = get_mood_entries()
+        self.mood_data = get_all_mood_entries()
 
     def log_mood(self, mood_score, timestamp=None, note=""):
         if timestamp is None:
             timestamp = datetime.now()
-        ok = add_mood_entry(mood_score, timestamp=timestamp, note=note)
-        if ok:
-            self.mood_data = get_mood_entries()
-        return ok
+        try:
+            add_mood_entry(mood_score, timestamp=timestamp, note=note)
+            self.mood_data = get_all_mood_entries()
+            return True
+        except Exception:
+            return False
 
     def _estimate_auto_mood(self, timestamp=None):
         if timestamp is None:

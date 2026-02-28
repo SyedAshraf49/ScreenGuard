@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame, QScrollArea, QListWidget
-from core.memory_store import get_usage_for_date, get_mood_entries_for_date
+from backend.db import get_usage_for_date, get_mood_entries_for_date
 from ui.ui_helpers import apply_card_shadow
 class ReportsPage(QWidget):
     def __init__(self):

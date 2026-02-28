@@ -11,6 +11,7 @@ from ui.well_being import WellBeingPage
 from ui.locker import LockerPage
 from core.smart_notifier import SmartNotifier
 from core.app_locker import make_locker
+from backend.db import init_db
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -20,6 +21,7 @@ class MainWindow(QWidget):
 
         layout = QHBoxLayout(self)
 
+        init_db()
         self.notifier = SmartNotifier()
 
         self.stack = QStackedWidget()

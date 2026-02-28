@@ -16,7 +16,7 @@ from PyQt6.QtCore import QSettings
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from core.recommender import get_recommendations
-from core.memory_store import add_usage, get_usage_for_date, reset_all
+from backend.db import add_usage, get_usage_for_date, reset_all
 from core.active_window import get_active_app_name
 from ui.ui_helpers import apply_card_shadow
 
@@ -334,6 +334,6 @@ class DashboardPage(QWidget):
 
     def on_reset(self):
         reset_all()
-        self.usage_status.setText("All in-memory data cleared.")
+        self.usage_status.setText("All data cleared.")
         self.refresh_recommendations()
         self.refresh_summary()

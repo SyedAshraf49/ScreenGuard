@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from core.memory_store import get_usage_for_date
+from backend.db import get_usage_for_date
 
 STUDY_APPS = ["Code","VSCode","PyCharm","Word","Excel","PowerPoint"]
 DISTRACTION_APPS = ["Chrome","YouTube","Netflix","Instagram"]

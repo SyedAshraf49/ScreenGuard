@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QScrollArea
 )
 from core.well_being_tracker import WellBeingTracker
-from core.memory_store import get_recent_mood_entries
+from backend.db import get_recent_mood_entries
 from ui.ui_helpers import apply_card_shadow
 
 

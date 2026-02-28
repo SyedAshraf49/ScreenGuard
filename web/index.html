@@ -410,7 +410,8 @@
               <h3>Set App Limit</h3>
               <p class="status">Define a daily time limit for any app. The app will be locked automatically once the limit is reached.</p>
               <div class="inline-form" id="locker-add-form">
-                <input type="text" id="locker-app-name" placeholder="App name (e.g. chrome)" />
+                <input type="text" id="locker-app-name" list="locker-app-options" placeholder="Choose app (e.g. msedge, chrome, code)" />
+                <datalist id="locker-app-options"></datalist>
                 <input type="number" id="locker-daily-minutes" min="1" max="1440" value="60" />
                 <span class="field-suffix">min / day</span>
                 <button class="primary-btn" id="locker-save-btn">Set Limit</button>
@@ -428,6 +429,7 @@
 
           <article class="card">
             <h3>App Limits — Today's Usage</h3>
+            <p class="status" id="locker-live-status">Live sync: waiting for first usage tick...</p>
             <ul class="list" id="locker-limits-list"></ul>
           </article>
         </section>
@@ -447,6 +449,6 @@
     </div>
 
     <div class="toast" id="toast"></div>
-    <script src="app.js?v=20260227b"></script>
+    <script src="app.js?v=20260228d"></script>
   </body>
 </html>

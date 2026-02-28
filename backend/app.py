@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from core.calendar_integration import GoogleCalendarClient
 from core.schedule_awareness import ScheduleAwarenessEngine
 from core.active_window import get_active_app_name
+from core.app_locker import make_locker
 
 from backend.db import (
     add_group_member,
@@ -48,6 +49,7 @@ from backend.db import (
     set_app_limit,
     get_app_limit,
     list_app_limits,
+    list_available_apps,
     remove_app_limit,
     lock_app,
     unlock_app,
@@ -77,6 +79,7 @@ URGENCY_RANK = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 
 
 app = FastAPI(title="ScreenGuard Web")
+locker_engine = None
 
 app.add_middleware(
     CORSMiddleware,
@@ -199,9 +202,27 @@ class AppUnlockIn(BaseModel):
     app: str
 
 
+class AppRemoveIn(BaseModel):
+    app: str
+
+
 @app.on_event("startup")
 def on_startup() -> None:
     init_db()
+    global locker_engine
+    locker_engine = make_locker(on_locked_fn=lambda app_name: _send_notification(
+        f"{app_name} is locked — time limit reached.",
+        "high",
+    ))
+    locker_engine.start()
+
+
+@app.on_event("shutdown")
+def on_shutdown() -> None:
+    global locker_engine
+    if locker_engine is not None:
+        locker_engine.stop()
+        locker_engine = None
 
 
 def _get_notification_prefs() -> Dict[str, object]:
@@ -890,6 +911,11 @@ def api_list_locker_limits() -> Dict[str, List[Dict[str, object]]]:
     return {"items": list_app_limits()}
 
 
+@app.get("/api/locker/apps")
+def api_list_locker_apps() -> Dict[str, List[str]]:
+    return {"items": list_available_apps()}
+
+
 @app.post("/api/locker/limits")
 def api_set_locker_limit(payload: AppLimitIn) -> Dict[str, object]:
     app_name = payload.app.strip()
@@ -901,6 +927,17 @@ def api_set_locker_limit(payload: AppLimitIn) -> Dict[str, object]:
 
 @app.delete("/api/locker/limits/{app_name}")
 def api_remove_locker_limit(app_name: str) -> Dict[str, object]:
+    removed = remove_app_limit(app_name)
+    if not removed:
+        raise HTTPException(status_code=404, detail="Limit not found.")
+    return {"ok": True}
+
+
+@app.post("/api/locker/limits/remove")
+def api_remove_locker_limit_post(payload: AppRemoveIn) -> Dict[str, object]:
+    app_name = payload.app.strip()
+    if not app_name:
+        raise HTTPException(status_code=400, detail="App name required.")
     removed = remove_app_limit(app_name)
     if not removed:
         raise HTTPException(status_code=404, detail="Limit not found.")

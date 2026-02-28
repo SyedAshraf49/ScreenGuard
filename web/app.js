@@ -1,5 +1,60 @@
 const API_BASE = "";
 
+const APP_DISPLAY_NAMES = {
+  chrome: "Google Chrome",
+  msedge: "Microsoft Edge",
+  firefox: "Mozilla Firefox",
+  brave: "Brave Browser",
+  opera: "Opera",
+  code: "Visual Studio Code",
+  pycharm64: "PyCharm",
+  idea64: "IntelliJ IDEA",
+  devenv: "Visual Studio",
+  notion: "Notion",
+  teams: "Microsoft Teams",
+  slack: "Slack",
+  discord: "Discord",
+  zoom: "Zoom",
+  telegram: "Telegram",
+  whatsapp: "WhatsApp",
+  spotify: "Spotify",
+  steam: "Steam",
+  vlc: "VLC Media Player",
+  obs64: "OBS Studio",
+  winword: "Microsoft Word",
+  excel: "Microsoft Excel",
+  powerpnt: "Microsoft PowerPoint",
+  outlook: "Microsoft Outlook",
+  onenote: "Microsoft OneNote",
+  notepad: "Notepad",
+  "notepad++": "Notepad++",
+};
+
+function formatAppDisplayName(appKey) {
+  const key = (appKey || "").trim().toLowerCase();
+  if (!key) return "";
+  return APP_DISPLAY_NAMES[key] || key;
+}
+
+function normalizeLockerAppInput(input) {
+  const raw = (input || "").trim().toLowerCase();
+  if (!raw) {
+    return "";
+  }
+  if (APP_DISPLAY_NAMES[raw]) {
+    return raw;
+  }
+
+  const directMatch = Object.entries(APP_DISPLAY_NAMES).find(
+    ([, label]) => label.toLowerCase() === raw
+  );
+  if (directMatch) {
+    return directMatch[0];
+  }
+
+  return raw;
+}
+
 const titles = {
   dashboard: {
     title: "Dashboard",
@@ -45,6 +100,8 @@ const state = {
   autoLoggingEnabled: true,
   moodAutoLogTimer: null,
   lockerRefreshTimer: null,
+  lockerLiveStatusTimer: null,
+  nextUsageLogAt: 0,
   usageChartMode: "stacked",
   weeklyUsageRows: [],
   localUsername: "",
@@ -184,10 +241,27 @@ async function apiDelete(path) {
 // ── App Locker ───────────────────────────────────────────────────────────────
 
 async function refreshLocker() {
-  const [statusData, limitsData] = await Promise.all([
+  const [statusData, limitsData, appsData] = await Promise.all([
     apiGet("/api/locker/status"),
     apiGet("/api/locker/limits"),
+    apiGet("/api/locker/apps"),
   ]);
+
+  const appOptions = document.getElementById("locker-app-options");
+  const appInput = document.getElementById("locker-app-name");
+  if (appOptions) {
+    const currentInput = appInput ? appInput.value : "";
+    appOptions.innerHTML = "";
+    (appsData.items || []).forEach((app) => {
+      const option = document.createElement("option");
+      option.value = app;
+      option.label = `${formatAppDisplayName(app)} (${app})`;
+      appOptions.appendChild(option);
+    });
+    if (appInput && currentInput) {
+      appInput.value = currentInput;
+    }
+  }
 
   // ── Locked apps ──────────────────────────────────────────────────────────
   const lockedList = document.getElementById("locker-locked-list");
@@ -200,7 +274,7 @@ async function refreshLocker() {
       const li = document.createElement("li");
       const since = item.locked_at ? item.locked_at.slice(0, 16) : "";
       li.innerHTML = `
-        <span>🔒 <strong>${item.app}</strong> — locked since ${since} (${item.locked_reason || ""})</span>
+        <span>🔒 <strong>${formatAppDisplayName(item.app)}</strong> (${item.app}) — locked since ${since} (${item.locked_reason || ""})</span>
         <button class="ghost-btn locker-unlock-btn" data-app="${item.app}">Unlock</button>
       `;
       lockedList.appendChild(li);
@@ -220,7 +294,7 @@ async function refreshLocker() {
       const pct = Math.min(100, Math.round((used / lim.daily_minutes) * 100));
       const li = document.createElement("li");
       li.innerHTML = `
-        <span>${isLocked ? "🔒 " : ""}<strong>${lim.app}</strong> — ${used}/${lim.daily_minutes} min (${pct}%)</span>
+        <span>${isLocked ? "🔒 " : ""}<strong>${formatAppDisplayName(lim.app)}</strong> (${lim.app}) — ${used}/${lim.daily_minutes} min (${pct}%)</span>
         <button class="ghost-btn locker-remove-btn" data-app="${lim.app}">Remove</button>
       `;
       limitsList.appendChild(li);
@@ -234,7 +308,7 @@ document.getElementById("locker-locked-list").addEventListener("click", async (e
   const app = btn.dataset.app;
   try {
     await apiPost("/api/locker/unlock", { app });
-    document.getElementById("locker-unlock-status").textContent = `${app} unlocked.`;
+    document.getElementById("locker-unlock-status").textContent = `${formatAppDisplayName(app)} unlocked.`;
     await refreshLocker();
   } catch (err) {
     document.getElementById("locker-unlock-status").textContent = `Error: ${err.message}`;
@@ -245,16 +319,25 @@ document.getElementById("locker-limits-list").addEventListener("click", async (e
   const btn = event.target.closest(".locker-remove-btn");
   if (!btn) return;
   const app = btn.dataset.app;
+  const statusEl = document.getElementById("locker-add-status");
   try {
-    await apiDelete(`/api/locker/limits/${encodeURIComponent(app)}`);
+    await apiPost("/api/locker/limits/remove", { app });
+    statusEl.textContent = `Removed limit: ${formatAppDisplayName(app)}`;
     await refreshLocker();
   } catch (err) {
-    showToast(`Error removing limit: ${err.message}`);
+    try {
+      await apiDelete(`/api/locker/limits/${encodeURIComponent(app)}`);
+      statusEl.textContent = `Removed limit: ${formatAppDisplayName(app)}`;
+      await refreshLocker();
+    } catch (fallbackErr) {
+      showToast(`Error removing limit: ${fallbackErr.message}`);
+    }
   }
 });
 
 document.getElementById("locker-save-btn").addEventListener("click", async () => {
-  const appName = document.getElementById("locker-app-name").value.trim();
+  const rawAppInput = document.getElementById("locker-app-name").value.trim();
+  const appName = normalizeLockerAppInput(rawAppInput);
   const dailyMinutes = Number(document.getElementById("locker-daily-minutes").value);
   const statusEl = document.getElementById("locker-add-status");
   if (!appName) {
@@ -267,7 +350,7 @@ document.getElementById("locker-save-btn").addEventListener("click", async () =>
   }
   try {
     await apiPost("/api/locker/limits", { app: appName, daily_minutes: dailyMinutes });
-    statusEl.textContent = `Limit set: ${appName} → ${dailyMinutes} min / day`;
+    statusEl.textContent = `Limit set: ${formatAppDisplayName(appName)} → ${dailyMinutes} min / day`;
     document.getElementById("locker-app-name").value = "";
     await refreshLocker();
   } catch (err) {
@@ -615,10 +698,31 @@ async function autoLogActiveUsageMinute() {
     document.getElementById("auto-log-status").textContent = `Auto logging: ON (${app})`;
     await refreshDashboard();
     await refreshReports();
+    await refreshLocker();
+    state.nextUsageLogAt = Date.now() + 60000;
   } catch {
     document.getElementById("auto-log-status").textContent =
       "Auto logging: ON (active app unavailable)";
   }
+}
+
+function updateLockerLiveStatus() {
+  const status = document.getElementById("locker-live-status");
+  if (!status) {
+    return;
+  }
+  if (!state.autoLoggingEnabled) {
+    status.textContent = "Live sync: auto logging paused.";
+    return;
+  }
+  const now = Date.now();
+  const next = Number(state.nextUsageLogAt || 0);
+  if (!next || next <= now) {
+    status.textContent = "Live sync: usage tick due now...";
+    return;
+  }
+  const secondsLeft = Math.max(0, Math.ceil((next - now) / 1000));
+  status.textContent = `Live sync: next usage tick in ${secondsLeft}s.`;
 }
 
 async function autoLogMoodCheckin() {
@@ -1133,7 +1237,14 @@ async function init() {
   if (state.usageAutoLogTimer) {
     clearInterval(state.usageAutoLogTimer);
   }
+  state.nextUsageLogAt = Date.now() + 60000;
   state.usageAutoLogTimer = setInterval(autoLogActiveUsageMinute, 60000);
+  if (state.lockerLiveStatusTimer) {
+    clearInterval(state.lockerLiveStatusTimer);
+  }
+  state.lockerLiveStatusTimer = setInterval(updateLockerLiveStatus, 1000);
+  updateLockerLiveStatus();
+  await autoLogActiveUsageMinute();
   if (state.moodAutoLogTimer) {
     clearInterval(state.moodAutoLogTimer);
   }
@@ -1185,6 +1296,8 @@ document.getElementById("auto-log-toggle").addEventListener("click", async () =>
   state.autoLoggingEnabled = !state.autoLoggingEnabled;
   saveAutoLoggingEnabled(state.autoLoggingEnabled);
   updateAutoLogToggleUI();
+  state.nextUsageLogAt = Date.now() + 60000;
+  updateLockerLiveStatus();
   await refreshActiveAppField();
 });
 

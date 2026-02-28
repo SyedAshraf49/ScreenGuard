@@ -2,7 +2,7 @@ from datetime import datetime
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QProgressBar, QFrame, QScrollArea
 from core.gamification import GamificationEngine
 from ui.ui_helpers import apply_card_shadow
-from core.memory_store import get_usage_for_date
+from backend.db import get_usage_for_date
 
 class AchievementsPage(QWidget):
     def __init__(self, engine=None):

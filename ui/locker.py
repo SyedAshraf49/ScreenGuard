@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
+    QComboBox,
     QFrame,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QPushButton,
     QScrollArea,
     QSpinBox,
@@ -18,6 +18,24 @@ from ui.ui_helpers import apply_card_shadow
 
 class LockerPage(QWidget):
     """Per-app time-limit & lock management page."""
+
+    DEFAULT_APP_SUGGESTIONS = [
+        "chrome",
+        "msedge",
+        "firefox",
+        "brave",
+        "code",
+        "pycharm64",
+        "discord",
+        "spotify",
+        "steam",
+        "telegram",
+        "whatsapp",
+        "notion",
+        "teams",
+        "zoom",
+        "obs64",
+    ]
 
     def __init__(self) -> None:
         super().__init__()
@@ -56,9 +74,16 @@ class LockerPage(QWidget):
         add_layout.addWidget(add_title)
 
         row = QHBoxLayout()
-        self.app_input = QLineEdit()
-        self.app_input.setPlaceholderText("App name (e.g. chrome)")
-        row.addWidget(self.app_input)
+        self.app_input = QComboBox()
+        self.app_input.setEditable(True)
+        self.app_input.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        if self.app_input.lineEdit() is not None:
+            self.app_input.lineEdit().setPlaceholderText("Choose app or type app name")
+        row.addWidget(self.app_input, stretch=1)
+
+        refresh_apps_btn = QPushButton("Refresh Apps")
+        refresh_apps_btn.clicked.connect(self._refresh_app_choices)
+        row.addWidget(refresh_apps_btn)
 
         self.minutes_spin = QSpinBox()
         self.minutes_spin.setRange(1, 1440)
@@ -119,12 +144,13 @@ class LockerPage(QWidget):
         self._timer.timeout.connect(self.refresh)
         self._timer.start()
 
+        self._refresh_app_choices()
         self.refresh()
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     def _save_limit(self) -> None:
-        app_name = self.app_input.text().strip()
+        app_name = self.app_input.currentText().strip()
         minutes = self.minutes_spin.value()
         if not app_name:
             self.add_status.setText("Please enter an app name.")
@@ -133,10 +159,27 @@ class LockerPage(QWidget):
             from backend.db import set_app_limit
             set_app_limit(app_name, minutes)
             self.add_status.setText(f"Limit set: {app_name} → {minutes} min / day")
-            self.app_input.clear()
+            if self.app_input.lineEdit() is not None:
+                self.app_input.lineEdit().clear()
+            self._refresh_app_choices()
             self.refresh()
         except Exception as exc:
             self.add_status.setText(f"Error: {exc}")
+
+    def _refresh_app_choices(self) -> None:
+        from backend.db import list_available_apps
+
+        current_text = self.app_input.currentText().strip()
+        suggestions = set(self.DEFAULT_APP_SUGGESTIONS)
+        suggestions.update(list_available_apps())
+
+        sorted_items = sorted(suggestions)
+        self.app_input.blockSignals(True)
+        self.app_input.clear()
+        self.app_input.addItems(sorted_items)
+        if current_text:
+            self.app_input.setCurrentText(current_text)
+        self.app_input.blockSignals(False)
 
     def _remove_limit(self, app_name: str) -> None:
         from backend.db import remove_app_limit
@@ -151,6 +194,7 @@ class LockerPage(QWidget):
     # ── Refresh ───────────────────────────────────────────────────────────────
 
     def refresh(self) -> None:
+        self._refresh_app_choices()
         self._refresh_limits()
         self._refresh_locked()
 
