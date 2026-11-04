@@ -1,82 +1,89 @@
-# ScreenGuard – Smart Screen Time Controller
+# ScreenGuard
+
+ScreenGuard is a screen-time management and digital well-being application with a PyQt6 desktop client and a FastAPI-powered web dashboard. It records app usage, supports daily and per-app limits, and provides usage reports and focus and well-being tools.
+
+## About
+
+ScreenGuard helps users understand and manage their screen habits. Usage data and settings are stored locally in SQLite, while the desktop and browser interfaces provide dashboards, reports, limit controls, and recovery prompts.
+
+## Features
+
+- Desktop dashboard and browser-based interface
+- App usage logging, summaries, and reports
+- Daily screen-time and per-app limits
+- Windows app monitoring and automatic app-lock enforcement
+- Usage recommendations, focus recovery prompts, and well-being insights
+- Local achievement and social features
+- Theme and notification settings
+- Optional Google Calendar integration for schedule-aware limit suggestions
+
+## Skills and Technologies
+
+- **Python** — application logic and desktop/system integration
+- **PyQt6** — desktop user interface
+- **FastAPI and Uvicorn** — web API and local web server
+- **HTML, CSS, and JavaScript** — browser interface
+- **SQLite** — local data persistence
+- **psutil and Windows APIs** — process information and active-window monitoring
+- **REST API development, usage analytics, background monitoring, and notification workflows**
+- **Google Calendar API** — optional calendar integration
 
 ## Requirements
-- Python 3.10 or higher — download from https://python.org
+
+- Python 3.10 or newer
 - Windows, macOS, or Linux
 
-> **Note:** Active window tracking (auto-detecting which app you're using) only works on **Windows**. On macOS/Linux the web dashboard and all other features still work fully.
+The desktop and web interfaces can run on Windows, macOS, and Linux. Active-window detection and automatic app-lock enforcement use Windows APIs; on macOS and Linux, usage must be entered manually.
 
----
+## Setup
 
-## Quick Setup (Recommended)
+The setup scripts create a virtual environment and install the dependencies from `requirements.txt`.
 
 **Windows:**
+
 ```bat
 setup.bat
 ```
 
-**macOS / Linux:**
+**macOS or Linux:**
+
 ```bash
 chmod +x setup.sh
 ./setup.sh
 ```
 
-These scripts automatically create a virtual environment and install all dependencies.
+## Run the Desktop App
 
----
+**Windows:**
 
-## Manual Setup
-
-```bash
-python -m venv .venv
-
-# Windows
-.venv\Scripts\pip install -r requirements.txt
-
-# macOS / Linux
-.venv/bin/pip install -r requirements.txt
+```bat
+.venv\Scripts\python main.py
 ```
 
----
+**macOS or Linux:**
 
-## Running the App
-
-### Desktop App (PyQt6 GUI)
 ```bash
-# Windows
-.venv\Scripts\python main.py
-
-# macOS / Linux
 .venv/bin/python main.py
 ```
 
-### Web App (Browser UI)
-```bash
-# Windows
-.venv\Scripts\python -m uvicorn backend.app:app --reload
+## Run the Web Dashboard
 
-# macOS / Linux
+Start the local web server:
+
+**Windows:**
+
+```bat
+.venv\Scripts\python -m uvicorn backend.app:app --reload
+```
+
+**macOS or Linux:**
+
+```bash
 .venv/bin/python -m uvicorn backend.app:app --reload
 ```
-Then open **http://127.0.0.1:8000** in your browser.
 
----
+Then open [http://127.0.0.1:8000](http://127.0.0.1:8000) in a browser.
 
-## Features
-- App-wise usage tracking
-- Automatic active-app logging (1-minute intervals)
-- Adaptive focus recovery coach (focus score + guided recovery sessions)
-- Automatic mood check-ins for trend/correlation insights
-- No manual logging required (fully automatic tracking)
-- Multiple switchable themes with theme-specific fonts (Night, Day, Aurora, Sunset, Mono)
-- Dashboard weekly day-by-day usage chart with color-coded apps and persistent style switch (stacked/area)
-- Dashboard Top 5 apps preference is saved across restarts
-- Auto-logging pause/resume state is saved across restarts
-- Expanded smart recommendations with usage intensity, trend, focus, and app-dominance insights
-- First-time web username onboarding with persistent personalized greeting
-- Display name can be updated directly from web Settings (and reflected in greeting)
-- Popup notifications for daily limit exceedance and newly unlocked achievements
-- First-time name capture uses an in-page website modal (not browser localhost prompt)
-- Sidebar-based modern UI
-- Smart recommendation engine
-- Reports and limits
+## Local Data
+
+ScreenGuard stores its SQLite database at `backend/data/screenguard.db`. Google Calendar integration is optional and requires Google API credentials.
